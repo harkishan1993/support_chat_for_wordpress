@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npx nodemon server.js",
     "build": "next build",
-    "start": "npm server.js",
+    "start": "node server.js",
     "lint": "next lint"
   },
   "dependencies": {
