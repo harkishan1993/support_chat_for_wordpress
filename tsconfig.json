@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+, "src/utils/extractTime.js", "src/hooks/useChatScroll.js", "src/hooks/useGetConversations.js", "src/hooks/useGetMessages.js", "src/hooks/useListenMessages.js", "src/hooks/useLogin.jsx", "src/hooks/useLogout.jsx", "src/hooks/useSendMessage.jsx", "src/hooks/useSignup.jsx", "src/app/_components/chat/messages/Message.jsx", "src/app/_components/chat/messages/MessageContainer.jsx", "src/app/_components/chat/messages/MessageInput.jsx", "src/app/_components/chat/messages/Messages.jsx", "src/app/_components/chat/sidebar/Conversation.jsx", "src/app/_components/chat/skeletons/MessageSkeleton.jsx", "src/app/_components/chat/sidebar/Conversations.jsx", "src/app/_components/chat/sidebar/LogoutButton.jsx", "src/app/_components/chat/sidebar/SearchInput.jsx", "src/app/_components/chat/sidebar/Sidebar.jsx"  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
