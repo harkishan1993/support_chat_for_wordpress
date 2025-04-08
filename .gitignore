@@ -9,7 +9,8 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
+frontend/package-lock.json
+frontend/bun.lock
 # testing
 /coverage
 
