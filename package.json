@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bunx nodemon server.js",
+    "dev": "npx nodemon server.js",
     "build": "next build",
-    "start": "bun server.js",
+    "start": "npm server.js",
     "lint": "next lint"
   },
   "dependencies": {
