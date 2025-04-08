@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npx nodemon server.js",
     "build": "next build",
-    "migrate" :"prisma migrate deploy",
+    "migrate": "prisma migrate deploy",
+    "postinstall": "prisma generate",
     "start": "node server.js",
     "lint": "next lint"
   },
