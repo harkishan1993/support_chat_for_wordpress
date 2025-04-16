@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "npx nodemon server.js",
     "build": "next build",
-    "start": "npm server.js",
-    "lint": "next lint",
     "migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "start": "node server.js",
+    "lint": "next lint"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",

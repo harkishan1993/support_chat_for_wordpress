@@ -4,7 +4,7 @@ import { app , server, express } from "./src/node/socket/socket.js";
 import authRoutes from "./src/node/routes/auth.route.js";
 import messageRoutes from "./src/node/routes/message.route.js";
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
+const hostname = '::';
 const port = 3000;
 const appNext = next({ dev, hostname, port });
 const handle = appNext.getRequestHandler();
