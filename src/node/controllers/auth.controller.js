@@ -137,12 +137,66 @@ export const updateUserForAssignAssistance = async (req, res) => {
         if (!userId || !asignId) {
             return res.status(404).json({ error: "User Id Not Found and Assistant Id Required" });
         }
+        const formdata = new FormData()
+        formdata.append("u_id", userId)
+        formdata.append("message", "Support")
+        formdata.append("token", "GOafiDOGFDB06EtcfjZ2vbsy3baLlwzeMsl1TFOMLDeYgjys6UOcg1XPMeOwPyC0")
+        console.log(formdata)
+        const resData = await fetch(`https://mytestapp.org.in/order_chat/wp-json/itpl-api/v1/user_message_request`, {
+            method: "POST",
+            body: formdata
+        });
+        const data = await resData.json();
+        let userName = data?.user_details?.data?.display_name
+        let assistantName = data?.agent_details?.data?.display_name
+        if (!!assistantName) {
+            await prisma.user.update({
+                where: {
+                    id: asignId
+                },
+                data: {
+                    fullName: assistantName,
+                    username: assistantName,
+                }
+            })
+        }
+        if (removeAcept === "yes") {
+            const type = "remove"
+            const body = `<b>${userName}</b> has been removed from your conversation by the admin. You will no longer receive messages from this conversation.`
+            await prisma.notification.create({
+                data: {
+                    userId: asignId,
+                    type,
+                    body,
+                },
+            });
+            const userSocketId = getReceiverSocketId(asignId);
+            userSocketId.forEach((socketId) => {
+                io.to(socketId).emit("notification");
+            })
+        } else {
+            const type = "accept"
+            const body = `<b>${userName}</b> has been assigned to you by the admin. You can now start the conversation.`;
+            await prisma.notification.create({
+                data: {
+                    userId: asignId,
+                    type,
+                    body,
+                },
+            });
+            const userSocketId = getReceiverSocketId(asignId);
+            userSocketId.forEach((socketId) => {
+                io.to(socketId).emit("notification");
+            })
+        }
         const user = await prisma.user.update({
             where: {
                 id: userId
             },
             data: {
-                assistanceId: removeAcept === "yes" ? null : asignId
+                assistanceId: removeAcept === "yes" ? null : asignId,
+                username: userName,
+                fullName: userName,
             }
         })
         if (user) {
@@ -151,13 +205,14 @@ export const updateUserForAssignAssistance = async (req, res) => {
             asignSocketId.forEach((socketId) => {
                 io.to(socketId).emit("acceptAproval", { assingOrNot: removeAcept === "yes", userId: userId, asignId: asignId });
             })
-           if(removeAcept !== "yes"){
-               userSocketId.forEach((socketId) => {
-                   io.to(socketId).emit("acceptAproval", { assingOrNot: removeAcept === "yes", userId: userId, asignId: asignId });
-               })
-           }
+            if (removeAcept !== "yes") {
+                userSocketId.forEach((socketId) => {
+                    io.to(socketId).emit("acceptAproval", { assingOrNot: removeAcept === "yes", userId: userId, asignId: asignId });
+                })
+            }
 
         }
+
         res.status(200).json(user);
     } catch (error) {
         console.log("Error in updateUserForAssignAssistance controller", error.message);

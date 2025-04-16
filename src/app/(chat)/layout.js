@@ -5,8 +5,12 @@ export const metadata = {
 };
 export default function RootLayout({ children }) {
   return (
-    <div className="flex justify-between items-center flex-col h-screen">
-      {children}
-    </div>
+
+
+        <div className="flex justify-between items-center flex-col h-screen">
+          {children}
+        </div>
+
+
   );
 }

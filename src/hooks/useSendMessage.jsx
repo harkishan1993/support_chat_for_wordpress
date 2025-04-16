@@ -10,7 +10,7 @@ const useSendMessage = () => {
 	const {messages,  selectedConversation} = useSelector((state) => state.conversation);
 	const dispatch = useDispatch();
 		const { userId } = useAuthContext();
-	const sendMessage = async (message) => {
+	const sendMessage = async ({body,type}) => {
 		if (!selectedConversation) return;
 		setLoading(true);
 		try {
@@ -19,7 +19,7 @@ const useSendMessage = () => {
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ message }),
+				body: JSON.stringify({ message: body, type: type }),
 			});
 			const data = await res.json();
 			dispatch(setMessages([...messages, data]))

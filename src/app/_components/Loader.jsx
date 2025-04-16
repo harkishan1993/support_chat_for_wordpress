@@ -1,20 +1,8 @@
-"use client";
-
-import { Box, CircularProgress, Typography } from "@mui/material";
-
 export default function Loader() {
   return (
-    <Box
-      display="flex"
-      flexDirection="column"
-      justifyContent="center"
-      alignItems="center"
-      height="100vh"
-    >
-      <CircularProgress color="primary" size={60} />
-      <Typography variant="h6" color="textSecondary" mt={2}>
-        Loading, please wait...
-      </Typography>
-    </Box>
+    <div className="flex flex-col items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent" />
+      <p className="mt-4 text-lg text-gray-500">Loading, please wait...</p>
+    </div>
   );
 }

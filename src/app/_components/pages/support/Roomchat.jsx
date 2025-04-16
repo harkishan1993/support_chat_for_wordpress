@@ -34,10 +34,7 @@ export default function SupportPage() {
   };
 
   const handleSelect = (option) => {
-    setMessages((prev) => [...prev, option]);
-    setTimeout(() => {
-      setMessages((prev) => [...prev, "Thank you! A representative will assist you soon."]);
-    }, 1000);
+
   };
 
   return (
@@ -57,7 +54,7 @@ export default function SupportPage() {
                 key={index}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.1, delay: index * 0.05 }}
+                transition={{ duration: 0.1, delay: index * 0.005 }}
               >
                 <Typography variant="body1">{msg}</Typography>
               </motion.div>

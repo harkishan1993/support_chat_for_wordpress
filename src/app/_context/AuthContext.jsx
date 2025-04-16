@@ -4,7 +4,7 @@ import { origin } from "../../utils/origin.js";
 import Loader from "../_components/Loader.jsx";
 const AuthContext = createContext({
 	authUser: null,
-	setAuthUser: () => {},
+	setAuthUser: () => { },
 	isLoading: true,
 	userId: null,
 	role: "user",
@@ -20,8 +20,7 @@ export const AuthContextProvider = ({ children }) => {
 	const [isLoading, setIsLoading] = useState(true);
 	const [userId, setUserId] = useState(null);
 	const [role, setRole] = useState("user");
-    const [mainloading, setMainLoading] = useState(true);
-	// Function to get query params from URL
+	const [mainloading, setMainLoading] = useState(true);
 	const getQueryParam = (param) => {
 		const urlParams = new URLSearchParams(window.location.search);
 		return urlParams.get(param);
@@ -64,8 +63,24 @@ export const AuthContextProvider = ({ children }) => {
 					setAuthUser(data);
 					setUserId(data.id);
 					setRole(data.role || "user");
-
 					// Update localStorage with fetched values
+					if (data?.id && data?.role == "user" && data?.assistanceId) {
+						const response = await fetch(
+							`${origin}/api/messages/user/unseen?id=${data?.id}&assistanceId=${data?.assistanceId}`,
+							{
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+							}
+						);
+						response.json().then((dataNew) => {
+							const messageData = {
+								type: "NEW_COUNT",
+								count: dataNew || 0,
+							};
+							window?.parent?.postMessage(messageData, '*');
+						});
+
+					}
 					localStorage.setItem("userId", data.id);
 					localStorage.setItem("role", data.role || "user");
 				} else {
@@ -92,7 +107,7 @@ export const AuthContextProvider = ({ children }) => {
 				setAuthUser,
 			}}
 		>
-			{mainloading ? <Loader /> :children}
+			{mainloading ? <Loader /> : children}
 		</AuthContext.Provider>
 	);
 };

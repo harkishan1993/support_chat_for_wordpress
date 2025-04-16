@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
-import { setMessages } from "../redux/conversationSlice.js";
+import { setMessages, upsertMessage } from "../redux/conversationSlice.js";
+import { useSocketContext } from "../app/_context/SocketContext";
 import toast from "react-hot-toast";
 import { origin } from "../utils/origin.js";
 import { useAuthContext } from "../app/_context/AuthContext";
 const useGetMessages = () => {
+	const { socket } = useSocketContext();
 	const [loading, setLoading] = useState(false);
 	const {messages, selectedConversation} = useSelector((state) => state.conversation);
 	const dispatch = useDispatch();
@@ -15,7 +17,18 @@ const useGetMessages = () => {
 		const getMessages = async () => {
 			if (!selectedConversation) return;
 			setLoading(true);
-			dispatch(setMessages([]));
+			try {
+				const res = await fetch(`${origin}/api/messages/${selectedConversation.id}?id=${userId}`);
+				const data = await res.json();
+				dispatch(setMessages(data));
+			} catch (error) {
+				toast.error(error.message);
+			} finally {
+				setLoading(false);
+			}
+		};
+		const getLatsMessages = async () => {
+			if (!selectedConversation) return;
 			try {
 				const res = await fetch(`${origin}/api/messages/${selectedConversation.id}?id=${userId}`);
 				const data = await res.json();
@@ -27,7 +40,13 @@ const useGetMessages = () => {
 			}
 		};
 		getMessages();
-	}, [selectedConversation,dispatch,userId]);
+		socket?.on("seenmsg", async () => {
+			getLatsMessages();
+		});
+		return () => {
+			socket?.off("seenmsg");
+		}
+	}, [selectedConversation,dispatch,userId, socket]);
 
 	return { messages, loading };
 };

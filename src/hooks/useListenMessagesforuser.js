@@ -15,11 +15,7 @@ const useListenMessagesForUser = () => {
         socket?.on("newMessage", (newMessage) => {
             newMessage.shouldShake = true;
 
-            // Play notification sound
-            // const sound = new Audio(notificationSound);
-            // sound.play();
-
-            console.log("New Message Received:", newMessage);
+   
 
             // Check if conversation already exists
             const conversationExists = messages.some(

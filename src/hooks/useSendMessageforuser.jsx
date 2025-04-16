@@ -5,20 +5,16 @@ import { setMessages } from "../redux/conversationSlice.js";
 import toast from "react-hot-toast";
 import { origin } from "../utils/origin.js";
 import { useAuthContext } from "../app/_context/AuthContext.jsx";
-import useSendRequestForAsignAssistance from "./wp/useSendRequestForAsignAssistance.js"
-import useUserUpdate from "./useUpdateUser"
 import { useSocketContext } from "../app/_context/SocketContext";
+import useSendRequestForAsignAssistance from "./wp/useSendRequestForAsignAssistance.js"
 import { store } from "../redux/store.js";
 const useSendMessageforuser = () => {
 	const [loading, setLoading] = useState(false);
 	const { socket } = useSocketContext();
 	const { messages } = useSelector((state) => state.conversation);
-	const { getUserDataWithAsingAssistance } = useSendRequestForAsignAssistance()
-
 	const dispatch = useDispatch();
-	const { userId, authUser, setAuthUser } = useAuthContext();
-	const { userUpdate } = useUserUpdate()
-
+	const { userId, authUser } = useAuthContext();
+	const { getUserDataWithAsingAssistance } = useSendRequestForAsignAssistance()
 	useEffect(() => {
 		socket?.on("acceptAproval", async ({ _, userId, asignId }) => {
 			const res = await fetch(`${origin}/api/messages/send/${userId}?id=${asignId}`, {
@@ -71,19 +67,12 @@ const useSendMessageforuser = () => {
 				}
 			});
 			const userDataWithConve = await resUser.json()
-			if (!userDataWithConve?.username) {
-                const userDataWithConve = await getUserDataWithAsingAssistance()
-                 if(!authUser?.username && userDataWithConve?.user_details?.data?.display_name){
-                   await userUpdate({username:userDataWithConve?.user_details?.data?.display_name})
-                 }
-			}
 		
 			if (!!userDataWithConve?.assistanceId) {
 				receivedId = userDataWithConve?.assistanceId
 				bot = false
 			} else {
 				receivedId = botId
-				console.log(botId)
 				bot = true
 			}
 			let updatedConversations;
@@ -130,21 +119,33 @@ const useSendMessageforuser = () => {
 							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
-							message: "Your request has already been sent. Please wait for an admin to assign an agent",
+							message: "We have received your request and will assign an agent shortly.",
 							type: "text"
 						}),
 					});
-			
+					await fetch(`${origin}/api/messages/notification`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							type: "request",
+							from: "user",
+							to:"admin",
+							userId: resUser.id,
+							name: authUser.username,
+						}),
+					});
 					const data = await res.json();
-			
+
 					// 🛑 Don't reuse `updatedConversations`, use current Redux state
 					const updatedWithBot = (() => {
 						const latestMessages = store.getState().conversation.messages; // or pass messages as fresh prop
-			
+
 						const conversationExists = latestMessages.some(
 							(conv) => conv.id === data.conversationId
 						);
-			
+
 						if (conversationExists) {
 							return latestMessages.map((conversation) => {
 								if (conversation.id === data.conversationId) {
@@ -166,21 +167,24 @@ const useSendMessageforuser = () => {
 							];
 						}
 					})();
-			
+
 					setTimeout(() => {
 						dispatch(setMessages(updatedWithBot));
 					}, 500);
 				}
 				setLoading(false);
 			});
-			
+			if(!userDataWithConve?.assistanceId){
+				await getUserDataWithAsingAssistance()
+			}
 		} catch (error) {
 			toast.error(error.message);
 		} finally {
 			setLoading(false);
 		}
+		
 	};
 
-	return { sendMessage, loading };
+	return { sendMessage, loading};
 };
 export default useSendMessageforuser;

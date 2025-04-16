@@ -1,9 +1,12 @@
+// conversationSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   selectedConversation: null,
   messages: [],
-  userAndAgantDetail: null
+  userAndAgantDetail: null,
+  conversations: [],
+  userChatboxOpen: false,
 };
 
 const conversationSlice = createSlice({
@@ -16,11 +19,48 @@ const conversationSlice = createSlice({
     setMessages: (state, action) => {
       state.messages = action.payload;
     },
-    setUserAndAgentDetail:(state, action)=>{
+    addMessage: (state, action) => {
+      state.messages.push(action.payload);
+    }, 
+    addUserChatboxOpen: (state, action) => {
+      state.userChatboxOpen = action.payload;
+    },
+    upsertMessage: (state, action) => {
+      const newMsg = action.payload;
+      const index = state.messages.findIndex((m) => m.id === newMsg.id);
+
+      if (index !== -1) {
+        // If found, replace
+        state.messages[index] = newMsg;
+      } else {
+        // If not found, push
+        state.messages.push(newMsg);
+      }
+    },
+    setUserAndAgentDetail: (state, action) => {
       state.userAndAgantDetail = action.payload;
-    }
+    },
+    setConversations: (state, action) => {
+      state.conversations = action.payload;
+    },
+    updateConversation: (state, action) => {
+      const updated = action.payload;
+      state.conversations = state.conversations.map((c) =>
+        c.id === updated.id ? { ...c, ...updated } : c
+      );
+    },
   },
 });
 
-export const { setSelectedConversation, setMessages, setUserAndAgentDetail } = conversationSlice.actions;
+export const {
+  setSelectedConversation,
+  setMessages,
+  setUserAndAgentDetail,
+  setConversations,
+  updateConversation,
+  addMessage,
+  upsertMessage,
+  addUserChatboxOpen
+} = conversationSlice.actions;
+
 export default conversationSlice.reducer;

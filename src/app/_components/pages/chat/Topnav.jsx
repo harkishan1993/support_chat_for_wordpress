@@ -7,14 +7,14 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 
 export default function Topnav() {
     return (
-        <AppBar position="static" sx={{ backgroundColor: "gray",marginTop:"5px"}}>
+        <AppBar position="static" sx={{ marginTop:"5px"}}>
             <Toolbar sx={{ justifyContent: "space-between", alignItems: "center" }}>
                 {/* Left Section */}
                 <Box display="flex" alignItems="center" gap={1}>
                  
                     <Stack direction="row" alignItems="center" gap={1}>
                         <FiberManualRecordIcon fontSize="small" sx={{ color: "limegreen" }} />
-                        <Typography variant="h6" component="div" sx={{ color: "#fff" }}>
+                        <Typography variant="h6" component="div" >
                             Live Chat Support
                         </Typography>
                     
@@ -26,7 +26,7 @@ export default function Topnav() {
                     <Link
                         href="/support"
                         underline="none"
-                        sx={{ display: "flex", alignItems: "center", color: "#fff" }}
+                        sx={{ display: "flex", alignItems: "center"}}
                     >
                         <HomeIcon sx={{ mr: 0.5 }} />
                     </Link>

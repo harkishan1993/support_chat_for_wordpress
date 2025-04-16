@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { setUserAndAgentDetail} from "../../redux/conversationSlice";
@@ -12,8 +11,6 @@ const useSendRequestForAsignAssistance = () => {
             formdata.append("u_id", userId)
             formdata.append("message", "Support")
             formdata.append("token","GOafiDOGFDB06EtcfjZ2vbsy3baLlwzeMsl1TFOMLDeYgjys6UOcg1XPMeOwPyC0")
-            console.log(formdata)
-
             try {
                 const res = await fetch(`https://mytestapp.org.in/order_chat/wp-json/itpl-api/v1/user_message_request`,{
                     method: "POST",

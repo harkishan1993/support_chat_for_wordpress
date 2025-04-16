@@ -4,6 +4,7 @@ import { AuthContextProvider } from "./_context/AuthContext";
 import SocketContextProvider from "./_context/SocketContext";
 import ReduxProvider from "../redux/ReduxProvider";
 import { Toaster } from "react-hot-toast";
+import Userunread from "./_context/Userunread";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -24,17 +25,19 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      > 
-      <ReduxProvider>
-        <AuthContextProvider>
-           <SocketContextProvider>
-          <div className="h-screen flex items-center justify-center">
-            {children}
-          </div>
-          </SocketContextProvider>
-        </AuthContextProvider>
-      </ReduxProvider>
-      <Toaster />
+      >
+        <ReduxProvider>
+          <AuthContextProvider>
+            <SocketContextProvider>
+              <Userunread>
+                <div className="h-screen flex items-center justify-center">
+                  {children}
+                </div>
+              </Userunread>
+            </SocketContextProvider>
+          </AuthContextProvider>
+        </ReduxProvider>
+        <Toaster />
       </body>
     </html>
   );

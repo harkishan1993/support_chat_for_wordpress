@@ -7,7 +7,7 @@ import Send from "@mui/icons-material/Send";
 function Nav() {
     const pathname = usePathname();
   return (
-    <nav className="text-white p-4 flex justify-between items-center shadow-md fixed bottom-0 w-full h-[50px]">
+    <nav className="text-white p-4 flex justify-between items-center shadow-md bottom-0 w-full h-[50px]">
     <Link href="/support" passHref>
       <Button
         variant={pathname === "/support" ? "contained" : "outlined"}

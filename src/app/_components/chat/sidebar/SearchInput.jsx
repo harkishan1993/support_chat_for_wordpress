@@ -19,7 +19,7 @@ const SearchInput = () => {
 		}
 
 		const conversation = conversations.find((c) =>
-			c?.fullName?.toLowerCase()?.includes(search?.toLowerCase())
+			c?.username?.toLowerCase()?.includes(search?.toLowerCase())
 		);
 
 		if (conversation) {
@@ -37,7 +37,7 @@ const SearchInput = () => {
 				value={search}
 				onChange={(e) => setSearch(e.target.value)}
 			/>
-			<button type='submit' className='btn md:btn-md btn-sm btn-circle text-slate-400 mr-2'>
+			<button type='submit' className='btn md:btn-md btn-sm btn-circle text-slate-400 mr-2 cursor-pointer'>
 				<Search className='w-4 h-4 md:w-6 md:h-6 outline-none' />
 			</button>
 		</form>

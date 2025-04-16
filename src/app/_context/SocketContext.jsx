@@ -19,10 +19,9 @@ const socketURL = process.env.NODE_ENV === "development" ? origin : "/";
 
 const SocketContextProvider = ({ children }) => {
 	const socketRef = useRef(null);
-
 	const [onlineUsers, setOnlineUsers] = useState([]);
 	const { userId, isLoading } = useAuthContext();
-     console.log("in context", userId)
+ 
 	useEffect(() => {
 		if (userId && !isLoading) {
 			const socket = io(socketURL, {
@@ -31,7 +30,6 @@ const SocketContextProvider = ({ children }) => {
 				},
 			});
 			socketRef.current = socket;
-
 			socket.on("getOnlineUsers", (users) => {
 				setOnlineUsers(users);
 			});

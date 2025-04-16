@@ -28,10 +28,10 @@ export const sendMessage = async (req, res) => {
 
         let participantIds = new Set();
 
-      
+
         // Check if conversation already exists
         let conversation;
-        if((sender.id === botId && receiver.role === "user") || (sender.role === "user" && receiver.id === botId)){
+        if ((sender.id === botId && receiver.role === "user") || (sender.role === "user" && receiver.id === botId)) {
             conversation = await prisma.conversation.findFirst({
                 where: {
                     participants: {
@@ -45,12 +45,12 @@ export const sendMessage = async (req, res) => {
                                 userId: receiverId,
                             },
                         },
-                        
+
                     }
                 },
             });
-                participantIds.add(receiverId); // user
-                participantIds.add(senderId); // support_manager
+            participantIds.add(receiverId); // user
+            participantIds.add(senderId); // support_manager
         }
         if (sender.role === "administrator" && receiver.role === "user" && receiver.assistanceId) {
             conversation = await prisma.conversation.findFirst({
@@ -66,24 +66,24 @@ export const sendMessage = async (req, res) => {
                                 userId: receiverId,
                             },
                         },
-                        
-                    },{
-                        participants:{
+
+                    }, {
+                        participants: {
                             some: {
                                 userId: receiver?.assistanceId,
                             },
                         }
                     }]
-                    
+
                 },
             });
 
-         
+
             participantIds.add(receiver.assistanceId); // user's support manager
             participantIds.add(admin.id); // auto include admin
             participantIds.add(receiverId); // user
         }
-        if(sender.role === "support_manager" && receiver.role === "user"){
+        if (sender.role === "support_manager" && receiver.role === "user") {
             conversation = await prisma.conversation.findFirst({
                 where: {
                     participants: {
@@ -97,15 +97,15 @@ export const sendMessage = async (req, res) => {
                                 userId: receiverId,
                             },
                         },
-                        
-                    },{
-                        participants:{
+
+                    }, {
+                        participants: {
                             some: {
                                 userId: admin.id,
                             },
                         }
                     }]
-                    
+
                 },
             });
             participantIds.add(admin.id); // auto include admin
@@ -127,15 +127,15 @@ export const sendMessage = async (req, res) => {
                                 userId: receiver.id,
                             },
                         },
-                        
-                    },{
-                        participants:{
+
+                    }, {
+                        participants: {
                             some: {
                                 userId: admin.id,
                             },
                         }
                     }]
-                    
+
                 },
             });
             participantIds.add(admin.id); // auto include admin
@@ -157,14 +157,14 @@ export const sendMessage = async (req, res) => {
                                 userId: receiverId,
                             },
                         },
-                        
+
                     }
                 },
             });
             participantIds.add(receiverId); // user
             participantIds.add(senderId); // support_manager
         }
-      
+
 
         let finalConversation = conversation;
 
@@ -195,16 +195,55 @@ export const sendMessage = async (req, res) => {
                         username: true,
                     }
                 },
+                messageStatus: {
+                    where: {
+                        NOT: {
+                            userId: senderId,
+                        },
+                    },
+                    select: {
+                        seen: true,
+                        userId: true, // Optional, if you want to know who saw it
+                    },
+                },
             }
         });
 
         // Emit message via socket to all participants
         if (sender.role === "administrator" && receiver.role === "user") {
+            await prisma.messageStatus.createMany({
+                data: [
+                    {
+                        messageId: newMessage.id,
+                        userId: receiverId,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: receiver?.assistanceId,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: senderId,
+                        seen: true,
+                        seenAt: new Date(),
+                    }
+                ]
+            });
+            const getIdForSeenMessage = getReceiverSocketId(receiver?.assistanceId);
+            getIdForSeenMessage.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
+            const getIdForSeenMessageForUser = getReceiverSocketId(receiverId);
+            getIdForSeenMessageForUser.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
             const socketIds = getReceiverSocketId(receiverId);;
             socketIds.forEach((socketId) => {
                 io.to(socketId).emit("newMessage", newMessage);
             });
-            if(!!receiver?.assistanceId){
+            if (!!receiver?.assistanceId) {
                 const socketIdsAssisatnce = getReceiverSocketId(receiver?.assistanceId);
                 socketIdsAssisatnce.forEach((socketId) => {
                     io.to(socketId).emit("newMessage", newMessage);
@@ -212,7 +251,35 @@ export const sendMessage = async (req, res) => {
 
             }
         }
-        if(sender.role === "support_manager" && receiver.role === "user"){
+        if (sender.role === "support_manager" && receiver.role === "user") {
+            await prisma.messageStatus.createMany({
+                data: [
+                    {
+                        messageId: newMessage.id,
+                        userId: receiverId,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: admin.id,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: senderId,
+                        seen: true,
+                        seenAt: new Date(),
+                    }
+                ]
+            });
+            const getIdForSeenMessage = getReceiverSocketId(admin.id);
+            getIdForSeenMessage.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
+            const getIdForSeenMessageForUser = getReceiverSocketId(receiverId);
+            getIdForSeenMessageForUser.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
             const socketIds = getReceiverSocketId(receiverId);;
             socketIds.forEach((socketId) => {
                 io.to(socketId).emit("newMessage", newMessage);
@@ -224,11 +291,38 @@ export const sendMessage = async (req, res) => {
         }
 
         if (sender.role === "user" && receiver.id === sender.assistanceId) {
-            const socketIds = getReceiverSocketId(receiverId);;
+            await prisma.messageStatus.createMany({
+                data: [
+                    {
+                        messageId: newMessage.id,
+                        userId: receiverId,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: admin.id,
+                        seen: false,
+                    },
+                    {
+                        messageId: newMessage.id,
+                        userId: senderId,
+                        seen: true,
+                        seenAt: new Date(),
+                    }
+                ]
+            });
+            const getIdForSeenMessageForAdmin = getReceiverSocketId(admin.id);
+            getIdForSeenMessageForAdmin.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
+            const getIdForSeenMessageForAssi = getReceiverSocketId(receiver.id);
+            getIdForSeenMessageForAssi.forEach((socketId) => {
+                io.to(socketId).emit("unread", { senderId: senderId });
+            });
+            const socketIds = getReceiverSocketId(receiverId);
             socketIds.forEach((socketId) => {
                 io.to(socketId).emit("newMessage", newMessage);
-            }
-            );
+            });
             const socketIdsAdmin = getReceiverSocketId(admin?.id);
             socketIdsAdmin.forEach((socketId) => {
                 io.to(socketId).emit("newMessage", newMessage);
@@ -242,7 +336,7 @@ export const sendMessage = async (req, res) => {
             });
         }
 
-        
+
         res.status(201).json(newMessage);
     } catch (error) {
         console.error("Error in sendMessage: ", error.message);
@@ -270,6 +364,17 @@ export const getMessages = async (req, res) => {
                                 username: true,
                             },
                         },
+                        messageStatus: {
+                            where: {
+                                NOT: {
+                                    userId: senderId,
+                                },
+                            },
+                            select: {
+                                seen: true,
+                                userId: true, // Optional, if you want to know who saw it
+                            },
+                        },
                     },
                 },
                 participants: {
@@ -294,12 +399,53 @@ export const getMessages = async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 };
+// export const getMessages = async (req, res) => {
+//     try {
+//         const { id: userToChatId } = req.params;
+//         const senderId = req.query.id;
+//         const cursor = req.query.cursor; // message id to start after
+//         const limit = parseInt(req.query.limit) || 20;
+
+//         const conversation = await prisma.conversation.findFirst({
+//             where: {
+//                 AND: [
+//                     { participants: { some: { userId: senderId } } },
+//                     { participants: { some: { userId: userToChatId } } },
+//                 ],
+//             },
+//             select: { id: true }, // just get conversation ID
+//         });
+        
+//         if (!conversation) return res.status(200).json([]);
+        
+//         const messages = await prisma.message.findMany({
+//             where: { conversationId: conversation.id },
+//             orderBy: { createdAt: "desc" }, // DESC for infinite scroll upward
+//             take: limit,
+//             ...(cursor && {
+//                 skip: 1,
+//                 cursor: { id: cursor },
+//             }),
+//             include: {
+//                 sender: { select: { username: true } },
+//                 messageStatus: {
+//                     where: { NOT: { userId: senderId } },
+//                     select: { seen: true, userId: true },
+//                 },
+//             },
+//         });
+
+//         res.status(200).json(messages);
+//     } catch (error) {
+//         console.error("Error in getMessages: ", error.message);
+//         res.status(500).json({ error: "Internal server error" });
+//     }
+// };
 
 export const getUsersForSidebar = async (req, res) => {
     try {
         const authUserId = req.query.id;
 
-        // First, get the role of the authenticated user
         const authUser = await prisma.user.findUnique({
             where: { id: authUserId },
             select: { role: true },
@@ -312,12 +458,25 @@ export const getUsersForSidebar = async (req, res) => {
         let users;
 
         if (authUser.role === "administrator") {
-            // ✅ Administrator: get all users except themselves
             users = await prisma.user.findMany({
                 where: {
-                    id: {
-                        not: authUserId,
-                    },
+                    AND: [
+                        {
+                            id: {
+                                notIn: [authUserId, "cm8wpc4hv0001dnnkhgmea0he"],
+                            },
+                        },
+                        {
+                            assistanceId: {
+                                not: null,
+                            },
+                        },
+                        {
+                            role: {
+                                notIn: ['support_manager', 'administrator'],
+                            },
+                        },
+                    ],
                 },
                 select: {
                     id: true,
@@ -326,7 +485,6 @@ export const getUsersForSidebar = async (req, res) => {
                 },
             });
         } else {
-            // ✅ Other users: get users assigned to them via assistanceId
             users = await prisma.user.findMany({
                 where: {
                     id: {
@@ -342,13 +500,30 @@ export const getUsersForSidebar = async (req, res) => {
             });
         }
 
-        res.status(200).json(users);
+        // 🔍 For each user, calculate unseen message count
+        const usersWithUnseen = await Promise.all(users.map(async (user) => {
+            const count = await prisma.messageStatus.count({
+                where: {
+                    userId: authUserId, // current user (viewer)
+                    seen: false,
+                    message: {
+                        senderId: user.id, // messages from this user
+                    },
+                },
+            });
+
+            return {
+                ...user,
+                unseenCount: count,
+            };
+        }));
+
+        res.status(200).json(usersWithUnseen);
     } catch (error) {
         console.error("Error in getUsersForSidebar: ", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };
-
 
 export const getUserById = async (req, res) => {
     try {
@@ -366,7 +541,7 @@ export const getUserById = async (req, res) => {
         res.status(200).json(users);
     }
     catch (error) {
-        console.error("Error in getUsersForSidebar: ", error.message);
+        console.error("Error in getUserById: ", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };
@@ -390,7 +565,7 @@ export const getConversationByuserId = async (req, res) => {
         res.status(200).json(users);
     }
     catch (error) {
-        console.error("Error in getUsersForSidebar: ", error.message);
+        console.error("Error in getConversationByuserId: ", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };
@@ -470,6 +645,185 @@ export const findOrCreateUser = async (req, res) => {
         return res.status(200).json(user);
     } catch (error) {
         console.error("Error finding or creating user:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const getUnseenCount = async (req, res) => {
+    const selectedUserId = req.params.userId;
+    const authId = req.query.authid;
+    const from = req.query?.from;
+    if (!authId || !selectedUserId) {
+        return res.status(400).json({ error: "Both ID is required" });
+    }
+    try {
+        const seenupdate = await prisma.messageStatus.updateMany({
+            where: {
+                userId: authId,
+                seen: false,
+                message: {
+                    senderId: selectedUserId,
+                }
+            },
+            data: {
+                seen: true,
+                seenAt: new Date(),
+            }
+        });
+        if (seenupdate?.count > 0) {
+            const socketIds = getReceiverSocketId(selectedUserId);
+            socketIds.forEach((socketId) => {
+                io.to(socketId).emit("seenmsg", seenupdate);
+            });
+        }
+        if (from == "user") {
+            const admin = await prisma.user.findFirst({ where: { role: "administrator" } });
+            if (!!admin?.id) {
+                const seenupdate = await prisma.messageStatus.updateMany({
+                    where: {
+                        userId: authId,
+                        seen: false,
+                        message: {
+                            senderId: admin.id,
+                        }
+                    },
+                    data: {
+                        seen: true,
+                        seenAt: new Date(),
+                    },
+
+                });
+                if (seenupdate?.count > 0) {
+
+                    const socketIds = getReceiverSocketId(admin.id);
+                    socketIds.forEach((socketId) => {
+                        io.to(socketId).emit("seenmsg", seenupdate);
+                    });
+                }
+            }
+        }
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error("Error in getUnseenCount Controller marking messages as seen:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const sendNotification = async (req, res) => {
+    const { type, from, to, name } = req.body;
+
+    try {
+        if (to == "admin") {
+            const admin = await prisma.user.findFirst({ where: { role: "administrator" } });
+
+            var userId = admin?.id;
+            if (!userId) return res.status(404).json({ error: "Administrator not found" });
+            const body = `Chat request sent by <b>${name || "user"}</b>`
+            await prisma.notification.create({
+                data: {
+                    userId,
+                    type,
+                    body,
+                },
+            });
+            const userSocketId = getReceiverSocketId(userId);
+            userSocketId.forEach((socketId) => {
+                io.to(socketId).emit("notification");
+            })
+        }
+        res.status(201).json({ success: true });
+    } catch (error) {
+        console.error("Error sending notification:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const getUserNotifications = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [notifications, totalCount] = await Promise.all([
+            prisma.notification.findMany({
+                where: { userId },
+                orderBy: [
+                    { seen: 'asc' },
+                    { createdAt: 'desc' },
+                ],
+                take: 50,
+            }),
+            prisma.notification.count({
+                where: { userId, seen: false },
+            }),
+        ]);
+
+        res.status(200).json({
+            totalCount,
+            notifications,
+        });
+    } catch (error) {
+        console.error("Error fetching notifications:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const markNotificationsAsSeen = async (req, res) => {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No notification IDs provided" });
+    }
+
+    try {
+        await prisma.notification.updateMany({
+            where: {
+                id: { in: ids },
+            },
+            data: {
+                seen: true,
+            },
+        });
+
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error("Error marking notifications as seen:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+export const getUsersUnseencount = async (req, res) => {
+    try {
+        const authUserId = req.query.id;
+        const assistanceId = req.query.assistanceId;
+        const admin = await prisma.user.findFirst({
+            where: { role: "administrator" }
+        });
+
+        if (!authUserId || !assistanceId || !admin?.id) {
+            return res.status(404).json({ error: "Id Not Found For getUsersUnseencount Controller" });
+        }
+
+        const count = await prisma.messageStatus.count({
+            where: {
+                userId: authUserId,
+                seen: false,
+                OR: [
+                    {
+                        message: {
+                            senderId: assistanceId,
+                        },
+                    },
+                    {
+                        message: {
+                            senderId: admin.id,
+                        },
+                    },
+                ],
+            },
+        });
+        res.status(200).json(count);
+    } catch (error) {
+        console.error("Error in getUsersUnseencount: ", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };

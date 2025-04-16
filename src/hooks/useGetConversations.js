@@ -5,15 +5,15 @@ import { origin } from "../utils/origin.js";
 import { useAuthContext } from "../app/_context/AuthContext";
 import { useSocketContext } from "../app/_context/SocketContext.jsx";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedConversation } from "../redux/conversationSlice.js";
+import { setSelectedConversation, setConversations } from "../redux/conversationSlice.js";
+
 
 const useGetConversations = () => {
 	const [loading, setLoading] = useState(false);
-	const [conversations, setConversations] = useState([]);
 	const { userId } = useAuthContext();
 	const { socket } = useSocketContext();
 	const dispatch = useDispatch();
-	const { selectedConversation } = useSelector((state) => state.conversation);
+	const { selectedConversation, conversations} = useSelector((state) => state.conversation);
 
 	// ✅ Stable getConversations function
 	const getConversations = useCallback(async () => {
@@ -26,13 +26,20 @@ const useGetConversations = () => {
 				headers: { "Content-Type": "application/json" },
 			});
 			const data = await res.json();
-			setConversations(data);
+			data.map((conversation) => {
+				if (conversation?.id === selectedConversation?.id) {
+					conversation.unseenCount = 0;
+				}
+				return conversation;
+			}
+			);
+			dispatch(setConversations(data));
 		} catch (error) {
 			toast.error(error.message);
 		} finally {
 			setLoading(false);
 		}
-	}, [userId]);
+	}, [userId, dispatch, selectedConversation]);
 
 	// ✅ Call it once on mount or userId change
 	useEffect(() => {
@@ -44,7 +51,7 @@ const useGetConversations = () => {
 		if (!socket) return;
 
 		const handleApproval = ({ assingOrNot, userId: approvalUserId }) => {
-			console.log("event conversation", assingOrNot, approvalUserId);
+		
 			if (assingOrNot) {
 				toast.error("removed from conversation");
 				if (selectedConversation?.id === approvalUserId) {
@@ -61,8 +68,17 @@ const useGetConversations = () => {
 			socket.off("acceptAproval", handleApproval);
 		};
 	}, [socket, getConversations, selectedConversation, dispatch]);
-
-	return { loading, conversations };
+	useEffect(() => {
+		if (!socket) return;
+		const handleNewConversation = () => {
+			getConversations()
+		};
+		socket.on("unread", handleNewConversation);
+		return () => {
+			socket.off("unread", handleNewConversation);
+		};
+	}, [socket, getConversations]);
+	return { loading, conversations};
 };
 
 export default useGetConversations;

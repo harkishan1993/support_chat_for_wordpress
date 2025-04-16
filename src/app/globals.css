@@ -1,28 +1,31 @@
 @import "tailwindcss";
 
 body {
-	/* background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("/bg.png");
-	background-repeat: no-repeat;
-	background-size: cover;
-	background-position: center; */
+	padding: 0;
+	margin: 0;
+	box-sizing: border-box;
 }
 
 /* dark mode looking scrollbar */
 ::-webkit-scrollbar {
-	width: 8px;
+	width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-	background: #555;
+	background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-	background: #121212;
-	border-radius: 5px;
+	background: rgb(211, 209, 209);
+	border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
 	background: #242424;
+}
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgb(211, 209, 209) transparent;
 }
 
 /* SHAKE ANIMATION ON HORIZONTAL DIRECTION */
