@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { useSocketContext } from "../app/_context/SocketContext";
 import { useSelector, useDispatch } from "react-redux";
-import { setMessages } from "../redux/conversationSlice.js";
+import { addMessage,incrementTopScrollUnseenCount } from "../redux/conversationSlice.js";
 import { useAuthContext } from "../app/_context/AuthContext";
 
 const notificationSound = '/sounds/notification.mp3';
@@ -18,13 +18,13 @@ const useListenMessages = () => {
 			newMessage.shouldShake = true;
 
 			if (newMessage?.senderId === selectedConversation?.id) {
+				dispatch(incrementTopScrollUnseenCount())
 				try {
 					const res = await fetch(`/api/messages/unseen/${selectedConversation?.id}?authid=${userId}`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 					});
 					const data = await res.json();
-
 					if (!res.ok || !data?.success) {
 						console.error("Failed to mark messages as seen");
 					} else {
@@ -55,8 +55,10 @@ const useListenMessages = () => {
 				}
 			};
 			window.parent.postMessage(messageData, '*');
-			// Add message to Redux store
-			dispatch(setMessages([...messages, newMessage]));
+		
+			if(newMessage?.senderId === selectedConversation?.id || newMessage?.senderId === selectedConversation?.assistanceId || newMessage?.sender?.role === "administrator") {
+				dispatch(addMessage(newMessage));
+			}
 		});
 	
 		return () => {

@@ -27,6 +27,7 @@ export const AuthContextProvider = ({ children }) => {
 	};
 
 	useEffect(() => {
+		setMainLoading(false);
 		// Try to get userId & role from query params
 		let userIdParam = getQueryParam("userId");
 		let roleParam = getQueryParam("role") || "user";
@@ -94,7 +95,7 @@ export const AuthContextProvider = ({ children }) => {
 		};
 
 		fetchUser();
-		setMainLoading(false);
+		
 	}, []);
 
 	return (

@@ -1,8 +1,8 @@
-import prisma from "../db/prisma.js";
-import bcryptjs from "bcryptjs";
-import generateToken from "../utils/generateToken.js";
-import { getReceiverSocketId, io } from "../socket/socket.js";
-export const signup = async (req, res) => {
+const prisma = require("../db/prisma.js");
+const bcryptjs = require("bcryptjs");
+const generateToken = require("../utils/generateToken.js");
+const { getReceiverSocketId, io } = require("../socket/socket.js");
+exports.signup = async (req, res) => {
     try {
         const { fullName, username, password, confirm_password, gender } = req.body;
         if (!fullName || !username || !password || !confirm_password || !gender) {
@@ -48,7 +48,7 @@ export const signup = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-export const login = async (req, res) => {
+exports.login = async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await prisma.user.findUnique({ where: { username } });
@@ -72,7 +72,7 @@ export const login = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-export const logout = async (req, res) => {
+exports.logout = async (req, res) => {
     try {
         res.cookie("_app_", "", {
             maxAge: 0,
@@ -88,7 +88,7 @@ export const logout = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-export const getMe = async (req, res) => {
+exports.getMe = async (req, res) => {
     console.log(req.query);
     try {
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
@@ -108,7 +108,7 @@ export const getMe = async (req, res) => {
     }
 };
 
-export const updateUser = async (req, res) => {
+exports.updateUser = async (req, res) => {
     try {
         const id = req.query?.id
         if (!id) {
@@ -128,7 +128,7 @@ export const updateUser = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 }
-export const updateUserForAssignAssistance = async (req, res) => {
+exports.updateUserForAssignAssistance = async (req, res) => {
     try {
         const userId = req.query?.userId
         const asignId = req.query?.asignId

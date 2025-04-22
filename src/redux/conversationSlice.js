@@ -7,6 +7,7 @@ const initialState = {
   userAndAgantDetail: null,
   conversations: [],
   userChatboxOpen: false,
+  topScrollUnseenCount: 0
 };
 
 const conversationSlice = createSlice({
@@ -49,6 +50,12 @@ const conversationSlice = createSlice({
         c.id === updated.id ? { ...c, ...updated } : c
       );
     },
+    incrementTopScrollUnseenCount: (state) => {
+      state.topScrollUnseenCount += 1;
+    },
+    resetTopScrollUnseenCount: (state) => {
+      state.topScrollUnseenCount = 0;
+    },
   },
 });
 
@@ -60,7 +67,10 @@ export const {
   updateConversation,
   addMessage,
   upsertMessage,
-  addUserChatboxOpen
+  addUserChatboxOpen,
+  incrementTopScrollUnseenCount,
+  resetTopScrollUnseenCount
+
 } = conversationSlice.actions;
 
 export default conversationSlice.reducer;

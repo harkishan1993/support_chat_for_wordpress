@@ -1,8 +1,8 @@
-import { Server } from "socket.io";
-import cookieParser from "cookie-parser";
-import cors from "cors"
-import http from "http";
-import express from "express";
+const { Server } = require("socket.io");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+const http = require("http");
+const express = require("express");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -21,7 +21,7 @@ app.use(
     })
 );
 const userSocketMap = {}; // {userId: socketId}
-export const getReceiverSocketId = (receiverId) => {
+const getReceiverSocketId = (receiverId) => {
     return userSocketMap[receiverId] || [];
 };
 io.on("connection", (socket) => {
@@ -49,4 +49,10 @@ io.on("connection", (socket) => {
     });
 });
 
-export { app, io, server,express };
+module.exports = {
+    app,
+    io,
+    server,
+    express,
+    getReceiverSocketId
+};

@@ -4,6 +4,7 @@ import { Button } from "@mui/material";
 import { Accordion, AccordionSummary, AccordionDetails, Card, CardContent, Typography, Divider } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation"
 export default function SupportPage() {
   const welcomeMessages = [
     "Hi there! 👋",
@@ -13,6 +14,7 @@ export default function SupportPage() {
   const [messages, setMessages] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const route = useRouter();
   // Start animation after the iframe has fully loaded
   useEffect(() => {
     setTimeout(() => {
@@ -34,7 +36,7 @@ export default function SupportPage() {
   };
 
   const handleSelect = (option) => {
-
+    route.push(`/chat`);
   };
 
   return (

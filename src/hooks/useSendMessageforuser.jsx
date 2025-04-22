@@ -1,19 +1,18 @@
 "use client"
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setMessages } from "../redux/conversationSlice.js";
+import { addMessage } from "../redux/conversationSlice.js";
 import toast from "react-hot-toast";
 import { origin } from "../utils/origin.js";
 import { useAuthContext } from "../app/_context/AuthContext.jsx";
 import { useSocketContext } from "../app/_context/SocketContext";
 import useSendRequestForAsignAssistance from "./wp/useSendRequestForAsignAssistance.js"
-import { store } from "../redux/store.js";
 const useSendMessageforuser = () => {
 	const [loading, setLoading] = useState(false);
 	const { socket } = useSocketContext();
 	const { messages } = useSelector((state) => state.conversation);
 	const dispatch = useDispatch();
-	const { userId, authUser } = useAuthContext();
+	const { userId, authUser, setAuthUser } = useAuthContext();
 	const { getUserDataWithAsingAssistance } = useSendRequestForAsignAssistance()
 	useEffect(() => {
 		socket?.on("acceptAproval", async ({ _, userId, asignId }) => {
@@ -24,42 +23,7 @@ const useSendMessageforuser = () => {
 				},
 				body: JSON.stringify({ message: "Welcome to the conversation", type: "welcome" }),
 			});
-			const data = await res.json();
-			const conversationExists = messages.some(
-				(conv) => conv.id === data.conversationId
-			);
-			let updatedConversations;
-			if (conversationExists && data) {
-				updatedConversations = messages.map((conversation) => {
-					if (conversation.id === data.conversationId) {
-						return {
-							...conversation,
-							messages: [...conversation.messages, data], // Append new message
-						};
-					}
-					return conversation;
-				});
-			} else {
-				updatedConversations = [
-					...messages, {
-						id: data.conversationId,
-						messages: [data],
-						participants: []
-					}
-				]
-			}
-		});
-
-		return () => {
-			socket?.off("acceptAproval");
-		};
-	}, [messages, dispatch, socket]);
-	const sendMessage = async ({ body, type }) => {
-		setLoading(true);
-		let botId = "cm8wpc4hv0001dnnkhgmea0he"
-		let receivedId = "cm8wpc4hv0001dnnkhgmea0he"
-		let bot = false
-		try {
+			await res.json();
 			const resUser = await fetch(`${origin}/api/messages/userbyid?id=${userId}`, {
 				method: "POST",
 				headers: {
@@ -67,114 +31,98 @@ const useSendMessageforuser = () => {
 				}
 			});
 			const userDataWithConve = await resUser.json()
-		
-			if (!!userDataWithConve?.assistanceId) {
-				receivedId = userDataWithConve?.assistanceId
+			setAuthUser(userDataWithConve)
+		});
+		return () => {
+			socket?.off("acceptAproval");
+		};
+	}, [messages, dispatch, socket]);
+	const sendMessage = useCallback(async ({ body, type, files }) => {
+		setLoading(true);
+		let botId = "cm8wpc4hv0001dnnkhgmea0he"
+		let receivedId = "cm8wpc4hv0001dnnkhgmea0he"
+		let bot = false
+		try {
+	
+			if (!!authUser?.assistanceId) {
+				receivedId = authUser?.assistanceId
 				bot = false
 			} else {
 				receivedId = botId
 				bot = true
 			}
-			let updatedConversations;
+			const tempId = `temp-${Date.now()}`;
+			const fileMetadata = files.map(file => ({
+				name: file.name,
+				type: file.type,
+				size: file.size,
+				url: URL.createObjectURL(file), // or from server after upload
+			  }));
+			  const optimisticMessage = {
+				id: tempId,
+				conversationId: "", // we'll update if needed
+				senderId: userId,
+				body,
+				files:fileMetadata,
+				type,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				sender: {
+				  username: authUser?.username ,
+				  role: authUser?.role
+				},
+				messageStatus: [],
+			  };
+
+			dispatch(addMessage(optimisticMessage));
+			const formData = new FormData();
+			files.forEach((file) => formData.append("files", file));
+			formData.append("message", body);
+			formData.append("type", type);
 			fetch(`${origin}/api/messages/send/${receivedId}?id=${userId}&user=${userId}`, {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ message: body, type: type }),
-			}).then(async (res) => {
-				return await res.json()
-			}).then(async (data) => {
-				const conversationExists = messages.some(
-					(conv) => conv.id === data.conversationId
-				);
-				if (conversationExists) {
-					updatedConversations = messages.map((conversation) => {
-						if (conversation.id === data.conversationId) {
-							return {
-								...conversation,
-								messages: [...conversation.messages, data], // Append new message
-							};
-						}
-						return conversation;
-					});
-				} else {
-					updatedConversations = [
-						...messages, {
-							id: data.conversationId,
-							messages: [data],
-							participants: []
-						}
-					]
-				}
-				dispatch(setMessages(updatedConversations))
-			}).catch((error) => {
-				toast.error(error.message);
-				console.log(error)
-			}).finally(async () => {
-				if (bot) {
-					const res = await fetch(`${origin}/api/messages/send/${userId}?id=${receivedId}&user=${userId}`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							message: "We have received your request and will assign an agent shortly.",
-							type: "text"
-						}),
-					});
-					await fetch(`${origin}/api/messages/notification`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							type: "request",
-							from: "user",
-							to:"admin",
-							userId: resUser.id,
-							name: authUser.username,
-						}),
-					});
-					const data = await res.json();
+				body: formData,
+			})
+				.then((res) => res.json())
+				.then((_) => {
+				})
+				.catch((error) => {
+					toast.error(error.message);
+					console.error(error);
+				}).finally(async () => {
+					if (bot) {
+						const res = await fetch(`${origin}/api/messages/send/${userId}?id=${receivedId}&user=${userId}`, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								message: "We have received your request and will assign an agent shortly.",
+								type: "text"
+							}),
+						});
+						await fetch(`${origin}/api/messages/notification`, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								type: "request",
+								from: "user",
+								to: "admin",
+								userId: authUser?.id,
+								name: authUser.username,
+							}),
+						});
+						const data = await res.json();
+						(() => {
+							dispatch(addMessage(data))
+						})();
 
-					// 🛑 Don't reuse `updatedConversations`, use current Redux state
-					const updatedWithBot = (() => {
-						const latestMessages = store.getState().conversation.messages; // or pass messages as fresh prop
-
-						const conversationExists = latestMessages.some(
-							(conv) => conv.id === data.conversationId
-						);
-
-						if (conversationExists) {
-							return latestMessages.map((conversation) => {
-								if (conversation.id === data.conversationId) {
-									return {
-										...conversation,
-										messages: [...conversation.messages, data],
-									};
-								}
-								return conversation;
-							});
-						} else {
-							return [
-								...latestMessages,
-								{
-									id: data.conversationId,
-									messages: [data],
-									participants: [],
-								},
-							];
-						}
-					})();
-
-					setTimeout(() => {
-						dispatch(setMessages(updatedWithBot));
-					}, 500);
-				}
-				setLoading(false);
-			});
-			if(!userDataWithConve?.assistanceId){
+					}
+					setLoading(false);
+				});
+			if (!authUser?.assistanceId) {
 				await getUserDataWithAsingAssistance()
 			}
 		} catch (error) {
@@ -182,9 +130,10 @@ const useSendMessageforuser = () => {
 		} finally {
 			setLoading(false);
 		}
-		
-	};
 
-	return { sendMessage, loading};
+	},[dispatch,authUser,userId,getUserDataWithAsingAssistance,origin]);
+
+	return { sendMessage, loading };
 };
 export default useSendMessageforuser;
+

@@ -1,6 +1,5 @@
 "use client"
 import { useEffect, useState } from "react";
-
 import { useSelector, useDispatch } from "react-redux";
 import { setMessages, upsertMessage } from "../redux/conversationSlice.js";
 import { useSocketContext } from "../app/_context/SocketContext";
@@ -31,7 +30,7 @@ const useGetMessages = () => {
 			if (!selectedConversation) return;
 			try {
 				const res = await fetch(`${origin}/api/messages/${selectedConversation.id}?id=${userId}`);
-				const data = await res.json();
+				const data = await res.json();			
 				dispatch(setMessages(data));
 			} catch (error) {
 				toast.error(error.message);

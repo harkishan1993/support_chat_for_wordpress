@@ -3,7 +3,7 @@ import Chatuser from "../../_components/pages/chat/Chatuser"
 function page() {
   return (
     <>
-    <Chatuser />
+     <Chatuser />
     </>
   )
 }

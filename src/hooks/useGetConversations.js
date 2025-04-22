@@ -21,7 +21,7 @@ const useGetConversations = () => {
 
 		setLoading(true);
 		try {
-			const res = await fetch(`${origin}/api/messages/conversations?id=${userId}`, {
+			const res = await fetch(`${origin}/api/messages/conversations?id=${userId}&take=15`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 			});

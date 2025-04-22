@@ -19,7 +19,6 @@ const useGetConversationsById = () => {
                     headers: { "Content-Type": "application/json" },
                 });
                 const data = await res.json();
-   
                 dispatch(setMessages(data));
             } catch (error) {
                 toast.error(error.message);

@@ -14,13 +14,6 @@ const nextConfig = {
     config.cache = false;
     return config;
   },
-  experimental: {
-    allowedDevOrigins: [
-      'http://localhost:3000',     
-      'https://mytestapp.org.in', 
-      'https://qwksxdw0-3000.inc1.devtunnels.ms',        
-    ]
-  },
   images: {
     remotePatterns: [
       {
