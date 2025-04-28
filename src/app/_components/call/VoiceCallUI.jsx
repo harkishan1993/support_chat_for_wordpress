@@ -20,7 +20,6 @@ const VoiceCallUI = ({ currentUser }) => {
     const ringtoneRef = useRef(null);
     const timerRef = useRef(null);
     const autoRejectTimeoutRef = useRef(null);
-    
     const startPeerConnection = async (createOffer) => {
         peerConnectionRef.current = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
