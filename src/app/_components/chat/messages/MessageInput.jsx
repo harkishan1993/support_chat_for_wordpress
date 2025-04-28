@@ -7,15 +7,16 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import emojiRegex from "emoji-regex";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
-import CloseIcon from "@mui/icons-material/Close";
+import FileSelectedViews from "./FileSelectedViews"
 import { useDropzone } from "react-dropzone";
-import { Badge, Box, Button, Card, CardContent, IconButton, Tooltip, Typography } from "@mui/material";
-
-const MessageInput = () => {
+import { Badge, IconButton, Tooltip } from "@mui/material";
+import VoiceRecorderButton from "../../../../hooks/VoiceRecorderButton"
+import VoicePreview from "./VoicePreview"
+const MessageInput = ({ setReplyTo, replyTo }) => {
 	const [message, setMessage] = useState("");
 	const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 	const { loading, sendMessage } = useSendMessage();
-
+	const [voiceFile, setVoiceFile] = useState(null);
 	const [files, setFiles] = useState([]);
 	const emojiPickerRef = useRef(null);
 	const handleEmojiClick = useCallback((emojiObject) => {
@@ -48,16 +49,24 @@ const MessageInput = () => {
 	}, []);
 	const handleSubmit = useCallback(async (e) => {
 		e.preventDefault();
-		if (!message.trim() && files.length === 0) return;
+		const hasText = message.trim();
+		const allFiles = [...files, ...(voiceFile ? [voiceFile] : [])];
+
+		if (!hasText && allFiles.length === 0) return;
 
 		const trimmed = message.trim();
 		const messageType = isOnlyEmoji(trimmed) ? "emoji" : "text";
-		const whenfile = files.length > 0 ? "file" : messageType;
+		const finalType = allFiles.length > 0 ? "file" : messageType;
 
 		setMessage("");
 		setFiles([]);
-		await sendMessage({ body: trimmed, type: whenfile, files: files });
-	}, [message, sendMessage, files, isOnlyEmoji]);
+		setVoiceFile(null);
+		setReplyTo(null);
+         console.log(allFiles)
+		await sendMessage({ body: trimmed, type: finalType, files: allFiles, replyTo });
+	}, [message, sendMessage, files, voiceFile, isOnlyEmoji, replyTo]);
+
+
 	const removeFile = useCallback((index) => {
 		setFiles((prev) => prev.filter((_, i) => i !== index));
 	}, []);
@@ -68,74 +77,70 @@ const MessageInput = () => {
 
 	return (
 		<>
+			{files.length > 0 && < FileSelectedViews files={files} clearFiles={clearFiles} removeFile={removeFile} />}
 
-			{files.length > 0 && (
-				<Box className="px-4 mb-2 flex flex-wrap gap-3 justify-start">
-					{files.map((file, idx) => {
-						const isImage = file.type.startsWith("image/");
-						const fileUrl = URL.createObjectURL(file);
-						const fileExt = file.name.split('.').pop()?.toUpperCase();
+			{replyTo && (
+				<div className="flex items-center justify-between w-1/2 max-md:w-full border-l-4 border-sky-500 bg-sky-50 dark:bg-slate-700/40 p-2 rounded-md mb-2">
+					<div className="flex items-start gap-2 overflow-hidden">
+						{/* Optional visual preview */}
+						{replyTo?.files?.[0]?.type?.startsWith("image") && (
+							<img
+								src={replyTo.files[0].url}
+								alt="replied-image"
+								className="w-12 h-12 object-cover rounded border"
+							/>
+						)}
+						{replyTo?.files?.[0]?.type && !replyTo.files[0].type.startsWith("image") && (
+							<div className="w-12 h-12 bg-gray-200 dark:bg-slate-600 flex items-center justify-center text-xs text-gray-600 dark:text-white rounded border">
+								{replyTo.files[0].name.split(".").pop().toUpperCase()}
+							</div>
+						)}
 
-						return (
-							<Card key={idx} sx={{ width: 120, p: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-								<IconButton
-									size="small"
-									onClick={() => removeFile(idx)}
-									sx={{ position: "absolute", top: 2, right: 2, zIndex: 10 }}
-									color="error"
-								>
-									<CloseIcon fontSize="small" />
-								</IconButton>
-								<CardContent sx={{ p: 0, textAlign: "center" }}>
-									{isImage ? (
-										<img
-											src={fileUrl}
-											alt={file.name}
-											style={{
-												maxWidth: "100%",
-												objectFit: "cover",
-												borderRadius: "6px",
-											}}
-										/>
-									) : (
-										<Box
-											sx={{
-												width: "100%",
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "center",
-												bgcolor: "grey.100",
-												borderRadius: "6px",
-											}}
-										>
-											<Typography variant="body2" fontWeight="bold">
-												{fileExt}
-											</Typography>
-										</Box>
-									)}
-									<Typography
-										variant="caption"
-										noWrap
-										title={file.name}
-										sx={{ mt: 0.5, display: "block" }}
-									>
-										{file.name}
-									</Typography>
-								</CardContent>
-							</Card>
-						);
-					})}
-					<Button size="small" variant="outlined" color="error" onClick={clearFiles}>
-						Clear All
-					</Button>
-				</Box>
+						{/* Message preview */}
+						<div className="flex flex-col overflow-hidden">
+							<p className="text-[12px] text-gray-500 dark:text-gray-300">
+								Replying to <strong>{replyTo?.sender?.username || "User"}</strong>
+							</p>
+							{replyTo.body && (
+								<p className="text-sm font-medium text-slate-800 dark:text-white truncate">
+									{replyTo.body}
+								</p>
+							)}
+							{!replyTo.body && replyTo.files?.length && (
+								<p className="text-sm italic text-gray-600 dark:text-gray-300">
+									{replyTo.files[0]?.type?.startsWith("image") ? "📷 Image" : `📎 ${replyTo.files[0]?.name}`}
+								</p>
+							)}
+						</div>
+					</div>
+
+					<button
+						onClick={() => setReplyTo(null)}
+						className="ml-2 text-gray-500 hover:text-red-500 transition-colors cursor-pointer"
+						title="Cancel reply"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							className="h-5 w-5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
 			)}
+			<VoicePreview voiceFile={voiceFile} setVoiceFile={setVoiceFile} />
 
 			<form className='px-4 mb-3 flex gap-4' onSubmit={handleSubmit}>
 				<div ref={emojiPickerRef} style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
-					<IconButton onClick={() => setShowEmojiPicker((prev) => !prev)}>
-						<EmojiEmotionsIcon color="primary" />
-					</IconButton>
+					<Tooltip title="Emoji" arrow>
+						<IconButton onClick={() => setShowEmojiPicker((prev) => !prev)}>
+							<EmojiEmotionsIcon color="primary" />
+						</IconButton>
+					</Tooltip>
 					{showEmojiPicker && (
 						<div
 							style={{
@@ -153,7 +158,7 @@ const MessageInput = () => {
 					)}
 					<input {...getInputProps()} />
 					<div className=''>
-						<Tooltip title="Attach files">
+						<Tooltip title="Attach files" arrow>
 							<IconButton color="primary" component="span" {...getRootProps()} disabled={`${files.length >= 3 ? "disabled" : ""}`}>
 								<Badge badgeContent={files.length} color="secondary">
 									<CloudUploadIcon fontSize="small" />
@@ -161,6 +166,12 @@ const MessageInput = () => {
 							</IconButton>
 						</Tooltip>
 					</div>
+					{!voiceFile && (
+						<VoiceRecorderButton
+							onRecorded={(file) => setVoiceFile(file)}
+						/>
+					)}
+
 				</div>
 				<div className='w-full relative flex items-center' >
 

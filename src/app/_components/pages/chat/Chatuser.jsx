@@ -7,6 +7,7 @@ import { extractTime } from "../../../../utils/extractTime";
 import CircularProgress from '@mui/material/CircularProgress';
 import DownloadIcon from '@mui/icons-material/Download';
 import useGetConversationsById from "../../../../hooks/useGetconversationbyuser";
+import ReplyIcon from "@mui/icons-material/Reply";
 import useListenMessagesforuser from "../../../../hooks/useListenMessagesforuser";
 import useSendMessage from "../../../../hooks/useSendMessageforuser";
 import { useAuthContext } from "../../../_context/AuthContext";
@@ -14,7 +15,8 @@ import emojiRegex from "emoji-regex";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import Topnav from "./Topnav";
-import CloseIcon from "@mui/icons-material/Close";
+import ReplyPreview from "./ReplyPreview"
+import FileSelectedViews from "../../chat/messages/FileSelectedViews"
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { addUserChatboxOpen, setMessages, resetTopScrollUnseenCount } from "../../../../redux/conversationSlice"
 import { useDispatch, useSelector } from "react-redux";
@@ -26,6 +28,10 @@ import ImageWithLoader from "./ImageWithLoader"
 import Linkify from "linkify-react";
 import { formatFileSize } from "../../../../utils/formatFileSize"
 import { useDropzone } from "react-dropzone";
+import VoiceRecorderButton from "../../../../hooks/VoiceRecorderButton";
+import VoicePreview from "../../chat/messages/VoicePreview";
+import VideoWithLoader from "../../chat/messages/VideoWithLoader";
+import { getYoutubeVideoId } from "../../../../utils/getYoutubeVideoId";
 
 export default function Chatuser() {
     const { convloading, messages } = useGetConversationsById();
@@ -46,7 +52,11 @@ export default function Chatuser() {
     const [activeDate, setActiveDate] = useState("");
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const [files, setFiles] = useState([]);
+    const [voiceFile, setVoiceFile] = useState(null);
     const ref = useRef(null);
+    const dispatch = useDispatch();
+    let scrollTimeout = useRef(null);
+    const [replyTo, setReplyTo] = useState(null);
     const { topScrollUnseenCount } = useSelector((state) => state.conversation)
     const onDrop = useCallback((acceptedFiles) => {
         setFiles((prev) => [...prev, ...acceptedFiles]);
@@ -56,8 +66,10 @@ export default function Chatuser() {
         onDrop,
         multiple: true,
     });
-    const dispatch = useDispatch();
-    let scrollTimeout = useRef(null);
+
+    const handleReply = useCallback((msg) => {
+        setReplyTo(msg);
+    }, []);
     const handleEmojiClick = useCallback((emojiObject) => {
         setInput((prev) => prev + emojiObject.native);
     }, [setInput, input]);
@@ -226,7 +238,7 @@ export default function Chatuser() {
             }
             clearTimeout(scrollTimeout.current);
         };
-    }, [activeDate, messages, userId, isFetchingMore, dispatch, hasMore]);
+    }, [activeDate, messages, userId, isFetchingMore, dispatch, hasMore, scrollTimeout]);
 
     const isOnlyEmoji = useCallback((text) => {
         const regex = emojiRegex();
@@ -280,16 +292,19 @@ export default function Chatuser() {
     }, [setDownloaded]);
     const sendMessageRequest = useCallback(async (e) => {
         e.preventDefault();
-        if (!input.trim() && files.length === 0) return;
+        const allFiles = [...files, ...(voiceFile ? [voiceFile] : [])];
+        if (!input.trim() && allFiles.length === 0) return;
 
         const trimmed = input.trim();
         const messageType = isOnlyEmoji(trimmed) ? "emoji" : "text";
-        const whenfile = files.length > 0 ? "file" : messageType;
+        const whenfile = allFiles.length > 0 ? "file" : messageType;
 
         setInput("");
         setFiles([]);
-        await sendMessage({ body: trimmed, type: whenfile, files: files });
-    }, [input, sendMessage, files, isOnlyEmoji]);
+        setVoiceFile(null);
+        setReplyTo(null);
+        await sendMessage({ body: trimmed, type: whenfile, files: allFiles, replyTo });
+    }, [input, sendMessage, files, voiceFile, isOnlyEmoji, replyTo]);
 
     useListenMessagesforuser();
 
@@ -328,39 +343,66 @@ export default function Chatuser() {
                                         className={`flex items-start gap-2.5 my-3 ${message.senderId === authUser.id ? "flex-row-reverse" : "flex-col"
                                             }`}
                                     >
-                                        <div>
-                                            <div className={`flex items-center gap-[1] my-1 ${message.senderId === authUser.id ? "justify-end" : ""} space-x-2 rtl:space-x-reverse`}>
-                                                {message.senderId !== authUser.id && (
-                                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                                                        {message.senderId === botId ? "Bot" : "Assistance"}
+                                        <div className="flex">
+                                            <div>
+                                                <div className={`flex items-center gap-[1] my-1 ${message.senderId === authUser.id ? "justify-end" : ""} space-x-2 rtl:space-x-reverse`}>
+                                                    {message.senderId !== authUser.id && (
+                                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                                                            {message.senderId === botId ? "Bot" : "Assistance"}
+                                                        </span>
+                                                    )}
+                                                    <span className={`text-[11px] font-normal text-gray-500 ${message.senderId === authUser.id ? "" : "leading-0"} dark:text-gray-400`}>
+                                                        {extractTime(message.createdAt)}
                                                     </span>
-                                                )}
-                                                <span className={`text-[11px] font-normal text-gray-500 ${message.senderId === authUser.id ? "" : "leading-0"} dark:text-gray-400`}>
-                                                    {extractTime(message.createdAt)}
-                                                </span>
+                                                </div>
+                                                <div
+                                                    className={`flex flex-col w-full max-w-[320px] py-1 px-4 border-gray-200 rounded-xl ${message.senderId === authUser.id
+                                                        ? message.type === "emoji" ? "bg-transparent" : "bg-sky-200 text-slate-700"
+                                                        : message.type === "emoji" ? "bg-transparent" : "bg-gray-100 text-slate-700"
+                                                        }`}
+                                                >
+                                                    {message?.replyTo && <ReplyPreview reply={message?.replyTo} />}
+                                                    {message.type === "emoji" ? (
+                                                        <p className="text-5xl font-semibold break-words leading-14">{message?.body}</p>
+                                                    ) : (
+                                                        <>
+                                                            {
+                                                                !!getYoutubeVideoId(message?.body) && <div className="rounded overflow-hidden py-1">
+                                                                    <iframe
+                                                                        className="w-full aspect-video rounded"
+                                                                        src={`https://www.youtube.com/embed/${getYoutubeVideoId(message?.body)}`}
+                                                                        frameBorder="0"
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                        allowFullScreen
+                                                                    />
+                                                                </div>
+                                                            }
+                                                            <p className="text-sm font-normal py-1 break-words">
+                                                                <Linkify
+                                                                    options={{
+                                                                        target: "_blank",
+                                                                        rel: "noopener noreferrer",
+                                                                        className: "text-blue-600 hover:underline break-all",
+                                                                    }}
+                                                                >
+                                                                    {message?.body}
+                                                                </Linkify>
+                                                            </p>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div
-                                                className={`flex flex-col w-full max-w-[320px] py-1 px-4 border-gray-200 rounded-xl ${message.senderId === authUser.id
-                                                    ? message.type === "emoji" ? "bg-transparent" : "bg-sky-200 text-slate-700"
-                                                    : message.type === "emoji" ? "bg-transparent" : "bg-gray-100 text-slate-700"
-                                                    }`}
-                                            >
-                                                {message.type === "emoji" ? (
-                                                    <p className="text-5xl font-semibold break-words leading-14">{message?.body}</p>
-                                                ) : (
-                                                    <p className="text-sm font-normal py-1 break-words">
-                                                        <Linkify
-                                                            options={{
-                                                                target: "_blank",
-                                                                rel: "noopener noreferrer",
-                                                                className: "text-blue-600 hover:underline break-all",
-                                                            }}
-                                                        >
-                                                            {message?.body}
-                                                        </Linkify>
-                                                    </p>
-                                                )}
-                                            </div>
+                                            {message.senderId !== authUser.id && (
+                                                <Tooltip title="Reply" arrow>
+                                                    <IconButton
+                                                        onClick={() => handleReply(message)}
+                                                        size="small"
+                                                        className="self-center"
+                                                    >
+                                                        <ReplyIcon sx={{ fontSize: "16px" }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -369,66 +411,98 @@ export default function Chatuser() {
                                         className={`flex items-start gap-2.5 my-3 ${message.senderId === authUser.id ? "flex-row-reverse" : "flex-col"
                                             }`}
                                     >
-                                        <div>
-                                            <div className={`flex items-center gap-[1] my-1 ${message.senderId === authUser.id ? "justify-end" : ""} space-x-2 rtl:space-x-reverse`}>
-                                                {message.senderId !== authUser.id && (
-                                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                                                        {message.senderId === botId ? "Bot" : "Assistance"}
-                                                    </span>
-                                                )}
-                                                <span className={`text-[11px] font-normal text-gray-500 ${message.senderId === authUser.id ? "" : "leading-0"} dark:text-gray-400`}>
-                                                    {extractTime(message.createdAt)}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className={`flex flex-col w-full max-w-[320px] py-1 px-4 border-gray-200 rounded-xl ${message.senderId === authUser.id
-                                                    ? "bg-sky-200 text-slate-700" : "bg-gray-100 text-slate-700"
-                                                    }`}
-                                            >
-                                                {message.files?.map((file, idx) => {
-                                                    const isImage = file.type?.startsWith("image");
+                                        <div className="flex">
+                                            <div>
+                                                <div className={`flex items-center gap-[1] ${message.senderId === authUser.id ? "justify-end" : ""} space-x-2 rtl:space-x-reverse`}>
 
-                                                    return <div key={idx} className="relative">
-                                                        {
-                                                            isImage ? (
-                                                                <ImageWithLoader
-                                                                    src={file.url}
-                                                                    className="w-full h-auto rounded-lg shadow mt-2"
-                                                                />
-                                                            ) : (
-                                                                <div className="relative bg-white border border-gray-200 rounded-lg p-3 mt-2 shadow-sm">
+                                                    {message.senderId !== authUser.id && (
+                                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                                                            {message.senderId === botId ? "Bot" : "Assistance"}
+                                                        </span>
+                                                    )}
+                                                    <span className={`text-[11px] font-normal text-gray-500 ${message.senderId === authUser.id ? "" : "leading-0"} dark:text-gray-400`}>
+                                                        {extractTime(message.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    className={`flex flex-col w-full gap-2 p-2 max-w-[320px] border-gray-200 rounded-xl ${message.senderId === authUser.id
+                                                        ? "bg-sky-200 text-slate-700" : "bg-gray-100 text-slate-700"
+                                                        }`}
+                                                >
+                                                    {message?.replyTo && <ReplyPreview reply={message?.replyTo} />}
+                                                    {message.files?.map((file, idx) => {
+                                                        const isImage = file.type?.startsWith("image");
+                                                        const isAudio = file.type?.startsWith("audio");
+                                                        const isVideo = file.type?.startsWith("video");
+                                                        return <div key={idx} className="relative">
+                                                            {
+                                                                isImage ? (
                                                                     <ImageWithLoader
-                                                                        type="file"
-                                                                        className="w-full h-auto rounded-md shadow"
+                                                                        src={file.url}
+                                                                        className="w-full h-auto rounded-lg shadow"
                                                                     />
-                                                                    <div className="mt-2 flex justify-between items-center">
-                                                                        <div>
-                                                                            <p className="text-sm font-medium text-gray-800  break-words">{file.name}</p>
-                                                                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                                                                ) : !isAudio && !isVideo && (
+                                                                    <div className="relative bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                                                                        <ImageWithLoader
+                                                                            type="file"
+                                                                            className="w-full h-auto rounded-md shadow"
+                                                                        />
+                                                                        <div className="mt-2 flex justify-between items-center">
+                                                                            <div>
+                                                                                <p className="text-sm font-medium text-gray-800  break-words">{file.name}</p>
+                                                                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
+                                                                )
+                                                            }
+                                                            {isAudio && (
+                                                                <div className="flex justify-center items-center">
+                                                                    <audio
+                                                                        controls
+                                                                        controlsList="nodownload noplaybackrate nofullscreen"
+                                                                        onContextMenu={(e) => e.preventDefault()}
+                                                                        src={file.url}
+                                                                    />
                                                                 </div>
-                                                            )
-                                                        }
-                                                        {
-                                                            message.senderId !== authUser.id && !downloaded[file.url] && (
-                                                                <button
-                                                                    onClick={() => handleImageDownload(file.url, file.name)}
-                                                                    className="absolute top-4 right-2 bg-white/80 hover:bg-white p-1 rounded-full"
-                                                                >
-                                                                    {downloading === file.url ? (
-                                                                        <CircularProgress size={20} thickness={5} />
-                                                                    ) : (
-                                                                        <DownloadIcon fontSize="small" sx={{ cursor: "pointer" }} />
-                                                                    )}
-                                                                </button>
-                                                            )
-                                                        }
-                                                    </div>
-                                                })}
-                                                <p className="text-sm font-normal py-1 break-words mt-1">{message.body}</p>
+                                                            )}
+                                                            {isVideo && (
+                                                                <VideoWithLoader src={file.url} />
+                                                            )}
 
+                                                            {
+                                                                message.senderId !== authUser.id && !downloaded[file.url] && !isAudio && !isVideo && (
+                                                                    <button
+                                                                        onClick={() => handleImageDownload(file.url, file.name)}
+                                                                        className="absolute top-4 right-2 bg-white/80 hover:bg-white p-1 rounded-full"
+                                                                    >
+                                                                        {downloading === file.url ? (
+                                                                            <CircularProgress size={20} thickness={5} />
+                                                                        ) : (
+                                                                            <Tooltip title="Download" arrow>
+                                                                                <DownloadIcon fontSize="small" sx={{ cursor: "pointer" }} />
+                                                                            </Tooltip>
+                                                                        )}
+                                                                    </button>
+                                                                )
+                                                            }
+                                                        </div>
+                                                    })}
+                                                    {message?.body && <p className="text-sm font-normal py-1 break-words mt-1">{message.body}</p>}
+
+                                                </div>
                                             </div>
+                                            {message.senderId !== authUser.id && (
+                                                <Tooltip title="Reply" arrow>
+                                                    <IconButton
+                                                        onClick={() => handleReply(message)}
+                                                        size="small"
+                                                        className="self-center"
+                                                    >
+                                                        <ReplyIcon sx={{ fontSize: "16px" }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -441,66 +515,59 @@ export default function Chatuser() {
             {
                 hardloading && <Loader />
             }
-            {files.length > 0 && (
-                <Box className="px-4 mb-2 flex flex-wrap gap-3 justify-start">
-                    {files.map((file, idx) => {
-                        const isImage = file.type.startsWith("image/");
-                        const fileUrl = URL.createObjectURL(file);
-                        const fileExt = file.name.split('.').pop()?.toUpperCase();
+            {files.length > 0 && <FileSelectedViews files={files} clearFiles={clearFiles} removeFile={removeFile} />}
+            {replyTo && (
+                <div className="flex items-center justify-between w-1/2 max-md:w-5/6 border-l-4 border-sky-500 bg-sky-100 p-2 rounded-md mb-2">
+                    <div className="flex items-start gap-2 overflow-hidden">
+                        {/* Optional visual preview */}
+                        {replyTo?.files?.[0]?.type?.startsWith("image") && (
+                            <img
+                                src={replyTo.files[0].url}
+                                alt="replied-image"
+                                className="w-12 h-12 object-cover rounded border"
+                            />
+                        )}
+                        {replyTo?.files?.[0]?.type && !replyTo.files[0].type.startsWith("image") && (
+                            <div className="w-12 h-12 bg-gray-200 flex items-center justify-center text-xs text-gray-600 rounded border">
+                                {replyTo.files[0].name.split(".").pop().toUpperCase()}
+                            </div>
+                        )}
 
-                        return (
-                            <Card key={idx} sx={{ width: 120, p: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-                                <IconButton
-                                    size="small"
-                                    onClick={() => removeFile(idx)}
-                                    sx={{ position: "absolute", top: 2, right: 2, zIndex: 10 }}
-                                    color="error"
-                                >
-                                    <CloseIcon fontSize="small" />
-                                </IconButton>
-                                <CardContent sx={{ p: 0, textAlign: "center" }}>
-                                    {isImage ? (
-                                        <img
-                                            src={fileUrl}
-                                            alt={file.name}
-                                            style={{
-                                                maxWidth: "100%",
-                                                objectFit: "cover",
-                                                borderRadius: "6px",
-                                            }}
-                                        />
-                                    ) : (
-                                        <Box
-                                            sx={{
-                                                width: "100%",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                bgcolor: "grey.100",
-                                                borderRadius: "6px",
-                                            }}
-                                        >
-                                            <Typography variant="body2" fontWeight="bold">
-                                                {fileExt}
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                    <Typography
-                                        variant="caption"
-                                        noWrap
-                                        title={file.name}
-                                        sx={{ mt: 0.5, display: "block" }}
-                                    >
-                                        {file.name}
-                                    </Typography>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                    <Button size="small" variant="outlined" color="error" onClick={clearFiles}>
-                        Clear All
-                    </Button>
-                </Box>
+                        {/* Message preview */}
+                        <div className="flex flex-col overflow-hidden">
+                            <p className="text-[12px] text-gray-500">
+                                Replying to <strong>{replyTo?.sender?.username || "User"}</strong>
+                            </p>
+                            {replyTo.body && (
+                                <p className="text-sm font-medium text-slate-800 truncate">
+                                    {replyTo.body}
+                                </p>
+                            )}
+                            {!replyTo.body && replyTo.files?.length && (
+                                <p className="text-sm italic text-gray-600">
+                                    {replyTo.files[0]?.type?.startsWith("image") ? "📷 Image" : `📎 ${replyTo.files[0]?.name}`}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => setReplyTo(null)}
+                        className="ml-2 text-gray-500 hover:text-red-500 transition-colors cursor-pointer"
+                        title="Cancel reply"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             )}
             {showScrollToBottom && (
                 <div className="fixed bottom-20 right-4 z-20 animate-bounce-in">
@@ -522,6 +589,7 @@ export default function Chatuser() {
                 </div>
 
             )}
+            <VoicePreview voiceFile={voiceFile} setVoiceFile={setVoiceFile} />
             <Paper
                 sx={{
                     display: "flex",
@@ -534,9 +602,11 @@ export default function Chatuser() {
                 }}
             >
                 <div ref={emojiPickerRef} style={{ position: "relative" }}>
-                    <IconButton onClick={() => setShowEmojiPicker((prev) => !prev)}>
-                        <EmojiEmotionsIcon color="primary" />
-                    </IconButton>
+                    <Tooltip title="Emoji" arrow>
+                        <IconButton onClick={() => setShowEmojiPicker((prev) => !prev)}>
+                            <EmojiEmotionsIcon color="primary" />
+                        </IconButton>
+                    </Tooltip>
                     {showEmojiPicker && (
                         <div
                             style={{
@@ -554,8 +624,8 @@ export default function Chatuser() {
                     )}
                 </div>
                 <input {...getInputProps()} />
-                <div className='mr-3'>
-                    <Tooltip title="Attach files">
+                <div>
+                    <Tooltip title="Attach files" arrow>
                         <IconButton color="primary" component="span" {...getRootProps()} disabled={`${files.length >= 3 ? "disabled" : ""}`}>
                             <Badge badgeContent={files.length} color="secondary">
                                 <CloudUploadIcon fontSize="small" />
@@ -563,17 +633,28 @@ export default function Chatuser() {
                         </IconButton>
                     </Tooltip>
                 </div>
+                {!voiceFile && (
+                    <VoiceRecorderButton
+                        onRecorded={(file) => setVoiceFile(file)}
+                    />
+                )}
                 <TextField
                     fullWidth
                     variant="outlined"
                     size="small"
                     value={input}
+                    sx={{ marginLeft: "8px" }}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && sendMessageRequest(e)}
                     placeholder="Type a message..."
                 />
-                <IconButton onClick={sendMessageRequest}>
-                    <SendIcon color="primary" />
+
+                <IconButton onClick={sendMessageRequest} disabled={loading}>
+                    {loading ? (
+                        <CircularProgress size={24} />
+                    ) : (
+                        <SendIcon color="primary" />
+                    )}
                 </IconButton>
             </Paper>
         </div>

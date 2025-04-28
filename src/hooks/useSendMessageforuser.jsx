@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { addMessage } from "../redux/conversationSlice.js";
+import { addMessage, removeLastMessage } from "../redux/conversationSlice.js";
 import toast from "react-hot-toast";
 import { origin } from "../utils/origin.js";
 import { useAuthContext } from "../app/_context/AuthContext.jsx";
@@ -37,13 +37,13 @@ const useSendMessageforuser = () => {
 			socket?.off("acceptAproval");
 		};
 	}, [messages, dispatch, socket]);
-	const sendMessage = useCallback(async ({ body, type, files }) => {
+	const sendMessage = useCallback(async ({ body, type, files, replyTo }) => {
 		setLoading(true);
 		let botId = "cm8wpc4hv0001dnnkhgmea0he"
 		let receivedId = "cm8wpc4hv0001dnnkhgmea0he"
 		let bot = false
 		try {
-	
+
 			if (!!authUser?.assistanceId) {
 				receivedId = authUser?.assistanceId
 				bot = false
@@ -57,38 +57,52 @@ const useSendMessageforuser = () => {
 				type: file.type,
 				size: file.size,
 				url: URL.createObjectURL(file), // or from server after upload
-			  }));
-			  const optimisticMessage = {
+			}));
+			const optimisticMessage = {
 				id: tempId,
 				conversationId: "", // we'll update if needed
 				senderId: userId,
 				body,
-				files:fileMetadata,
+				files: fileMetadata,
 				type,
+				replyTo,
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 				sender: {
-				  username: authUser?.username ,
-				  role: authUser?.role
+					username: authUser?.username,
+					role: authUser?.role
 				},
 				messageStatus: [],
-			  };
+			};
 
 			dispatch(addMessage(optimisticMessage));
 			const formData = new FormData();
 			files.forEach((file) => formData.append("files", file));
 			formData.append("message", body);
 			formData.append("type", type);
+			formData.append("replyToMessageId", replyTo?.id)
 			fetch(`${origin}/api/messages/send/${receivedId}?id=${userId}&user=${userId}`, {
 				method: "POST",
 				body: formData,
 			})
-				.then((res) => res.json())
+				.then(async (res) => {
+					if (!res.ok) {
+						const text = await res.text();
+						throw new Error(text || `Server responded with status ${res.status}`);
+					}
+					return res.json()
+				})
 				.then((_) => {
 				})
 				.catch((error) => {
-					toast.error(error.message);
-					console.error(error);
+					toast.custom((t) => (
+						<div
+							className={`bg-white shadow-lg rounded px-4 py-3 text-amber-800 border border-amber-600 ${t.visible ? "animate-enter" : "animate-leave"}`}
+							dangerouslySetInnerHTML={{ __html: error.message || "Something went wrong." }}
+						/>
+					));
+					dispatch(removeLastMessage());
+					console.log(error);
 				}).finally(async () => {
 					if (bot) {
 						const res = await fetch(`${origin}/api/messages/send/${userId}?id=${receivedId}&user=${userId}`, {
@@ -127,11 +141,9 @@ const useSendMessageforuser = () => {
 			}
 		} catch (error) {
 			toast.error(error.message);
-		} finally {
-			setLoading(false);
 		}
 
-	},[dispatch,authUser,userId,getUserDataWithAsingAssistance,origin]);
+	}, [dispatch, authUser, userId, getUserDataWithAsingAssistance, origin]);
 
 	return { sendMessage, loading };
 };

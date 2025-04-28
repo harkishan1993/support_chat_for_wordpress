@@ -12,8 +12,8 @@ const io = new Server(server, {
     },
 });
 app.use(cookieParser());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ limit: "500mb", extended: true }));
 app.use(
     cors({
         origin: "*",
@@ -37,7 +37,54 @@ io.on("connection", (socket) => {
     }
 
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    // When a user initiates a call
 
+    socket.on("incomingVoiceCall", ({ to, from }) => {
+        console.log(to, from)
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("incomingVoiceCall", { from });
+        });
+    });
+
+    // When a user accepts a call
+    socket.on("accept-call", ({ to }) => {
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("call-accepted");
+        });
+    });
+    // When an ICE candidate is sent from the frontend, send it to the receiver
+    socket.on("ice-candidate", ({ to, candidate }) => {
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("ice-candidate", candidate);
+        });
+    });
+
+    // When a user accepts the call and sends an answer (SDP)
+    socket.on("answer", ({ to, answer }) => {
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("answer", answer);
+        });
+    });
+
+    // When a user rejects a call
+    socket.on("reject-call", ({ to }) => {
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("call-rejected");
+        });
+    });
+
+    // When a user ends a call
+    socket.on("end-call", ({ to }) => {
+        const receiverSocketIds = getReceiverSocketId(to);
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("call-ended");
+        });
+    });
     socket.on("disconnect", () => {
         if (userId && userSocketMap[userId]) {
             userSocketMap[userId] = userSocketMap[userId].filter(id => id !== socket.id);

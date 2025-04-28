@@ -5,7 +5,7 @@ const fs = require("fs")
 const path = require("path")
 exports.sendMessage = async (req, res) => {
     try {
-        const { message, type } = req.body;
+        const { message, type, replyToMessageId } = req.body;
         const { id: receiverId } = req.params;
         const senderId = req.query.id;
         let uploadedFiles = [];
@@ -13,7 +13,7 @@ exports.sendMessage = async (req, res) => {
         if (!receiverId || !senderId) {
             return res.status(400).json({ error: "Message, receiverId and senderId are required." });
         }
-        if(!message && !req?.files){
+        if (!message && !req?.files) {
             return res.status(400).json({ error: "Message is required." });
         }
         const admin = await prisma.user.findFirst({ where: { role: "administrator" } });
@@ -201,21 +201,42 @@ exports.sendMessage = async (req, res) => {
                 }
             });
         }
-
-        // Save the message
+        const dataMeta = {
+            senderId,
+            body: message,
+            type: type,
+            files: uploadedFiles,
+            conversationId: finalConversation.id,
+        }
+        if (
+            replyToMessageId
+            && typeof replyToMessageId === 'string'
+            && replyToMessageId.trim() !== 'null'
+            && replyToMessageId.trim() !== 'undefined'
+            && replyToMessageId.trim() !== ''
+        ) {
+            dataMeta.replyToMessageId = replyToMessageId;
+        }
+   
         const newMessage = await prisma.message.create({
-            data: {
-                senderId,
-                body: message,
-                type: type,
-                files:uploadedFiles,
-                conversationId: finalConversation.id,
-            },
+            data: dataMeta,
             include: {
                 sender: {
                     select: {
                         username: true,
                         role: true,
+                    }
+                },
+                replyTo: {
+                    select: {
+                        id: true,
+                        body: true,
+                        files: true,
+                        type: true,
+                        createdAt: true,
+                        sender: {
+                            select: { username: true }
+                        }
                     }
                 },
                 messageStatus: {
@@ -397,6 +418,18 @@ exports.getMessages = async (req, res) => {
             }),
             include: {
                 sender: { select: { username: true, role: true } },
+                replyTo: {
+                    select: {
+                        id: true,
+                        body: true,
+                        files: true,
+                        type: true,
+                        createdAt: true,
+                        sender: {
+                            select: { username: true }
+                        }
+                    }
+                },
                 messageStatus: {
                     where: { NOT: { userId: senderId } },
                     select: { seen: true, userId: true },
@@ -542,6 +575,18 @@ exports.getConversationByuserId = async (req, res) => {
                         username: true,
                         profilePic: true,
                         role: true,
+                    }
+                },
+                replyTo: {
+                    select: {
+                        id: true,
+                        body: true,
+                        files: true,
+                        type: true,
+                        createdAt: true,
+                        sender: {
+                            select: { username: true }
+                        }
                     }
                 },
                 messageStatus: true,

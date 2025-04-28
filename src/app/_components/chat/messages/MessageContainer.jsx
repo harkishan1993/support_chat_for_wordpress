@@ -5,6 +5,8 @@ import { useSelector } from "react-redux";
 import { MessageCircle } from "lucide-react";
 import useListenMessages from "../../../../hooks/useListenMessages";
 import { useAuthContext } from "../../../_context/AuthContext";
+import { useState, useCallback } from "react";
+import VoiceCallUI from "../../call/VoiceCallUI"
 const NoChatSelected = () => {
 	const { authUser } = useAuthContext();
 	return (
@@ -19,6 +21,11 @@ const NoChatSelected = () => {
 };
 const MessageContainer = () => {
 	const { selectedConversation } = useSelector((state) => state.conversation)
+	const [replyTo, setReplyTo] = useState(null);
+
+	const handleReply = useCallback((msg) => {
+		setReplyTo(msg);
+	}, []);
 	useListenMessages();
 	return (
 		<div className='w-full flex flex-col'>
@@ -27,12 +34,13 @@ const MessageContainer = () => {
 			) : (
 				<>
 					{/* Header */}
-					<div className='border-b-1 border-slate-300 px-4 py-2 mb-2'>
+					<div className='border-b-1 border-slate-300 px-4 py-2 mb-2 flex justify-between items-center'>
 						{/* <span className='label-text font-bold text-gray-600'>To:</span>{" "} */}
 						<span className='text-slate-500 font-bold capitalize'>{selectedConversation.username}</span>
+						<VoiceCallUI currentUser={selectedConversation} />
 					</div>
-					<Messages />
-					<MessageInput />
+					<Messages onReply={handleReply} />
+					<MessageInput setReplyTo={setReplyTo} replyTo={replyTo} />
 				</>
 			)}
 		</div>

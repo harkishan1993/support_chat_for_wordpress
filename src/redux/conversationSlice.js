@@ -22,7 +22,10 @@ const conversationSlice = createSlice({
     },
     addMessage: (state, action) => {
       state.messages.push(action.payload);
-    }, 
+    },   
+    removeLastMessage: (state) => {
+      state.messages.pop(); 
+    },
     addUserChatboxOpen: (state, action) => {
       state.userChatboxOpen = action.payload;
     },
@@ -69,7 +72,8 @@ export const {
   upsertMessage,
   addUserChatboxOpen,
   incrementTopScrollUnseenCount,
-  resetTopScrollUnseenCount
+  resetTopScrollUnseenCount,
+  removeLastMessage
 
 } = conversationSlice.actions;
 

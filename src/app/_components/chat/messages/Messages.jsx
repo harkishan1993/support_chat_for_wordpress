@@ -5,9 +5,10 @@ import Message from "./Message";
 import { groupMessagesByDate } from "../../../../utils/Dayfind.js";
 import { useAuthContext } from "../../../_context/AuthContext";
 import { useSelector, useDispatch } from "react-redux";
-import { setMessages,resetTopScrollUnseenCount } from "../../../../redux/conversationSlice";
+import { setMessages, resetTopScrollUnseenCount } from "../../../../redux/conversationSlice";
 import LoaderMsg from "./LoaderMsg";
-const Messages = () => {
+const Messages = ({onReply}) => {
+	
 	const { selectedConversation, topScrollUnseenCount } = useSelector((state) => state.conversation)
 	const { loading, messages } = useGetMessages();
 	const [showStickyDate, setShowStickyDate] = useState(false);
@@ -137,7 +138,7 @@ const Messages = () => {
 			}
 			clearTimeout(scrollTimeout.current);
 		};
-	}, [activeDate, messages, selectedConversation, userId, isFetchingMore, hasMore, dispatch]);
+	}, [activeDate, messages, selectedConversation, userId, isFetchingMore, hasMore, dispatch, scrollTimeout]);
 
 	useEffect(() => {
 		if (messages.length === 0) {
@@ -204,7 +205,7 @@ const Messages = () => {
 						</div>
 						{
 							msgs.map((message, idx) => {
-								return <Message key={idx} message={message} premessage={msgs[idx - 1]} lastSeenMessageId={lastSeenMessageId} />
+								return <Message key={idx} message={message} premessage={msgs[idx - 1]} lastSeenMessageId={lastSeenMessageId}  onReply={onReply} />
 							})
 						}
 					</div>

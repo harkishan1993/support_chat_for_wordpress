@@ -4,12 +4,14 @@ import Link from "next/link";
 import { AppBar, Toolbar, Typography, Box, Stack} from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+import VoiceCallUI from "../../call/VoiceCallUI";
 
 export default function Topnav() {
     return (
         <AppBar position="static" sx={{ marginTop:"5px"}}>
             <Toolbar sx={{ justifyContent: "space-between", alignItems: "center" }}>
                 {/* Left Section */}
+                <VoiceCallUI currentUser={null}/>
                 <Box display="flex" alignItems="center" gap={1}>
                  
                     <Stack direction="row" alignItems="center" gap={1}>
